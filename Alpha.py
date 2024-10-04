@@ -3,7 +3,7 @@ from opencage.geocoder import OpenCageGeocode
 
 # 透過地址查找經緯度
 def get_lat_long(address):
-    key = '4d58e7dc0a9b43c49e3dbfcd5d840f76'  # 替換為你的 OpenCage API 金鑰
+    key = 'OpenCage API KEY'  # 替換為你的 OpenCage API 金鑰
     geocoder = OpenCageGeocode(key)
     result = geocoder.geocode(address)
     if result:
