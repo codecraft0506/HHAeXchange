@@ -19,9 +19,9 @@
 
 - **操作系統**：Windows 10 或更高版本
 - **軟體需求**：
-  - **Android Studio**
-  - **Java JDK**
-  - **Python 3.x**
+  - **[Android Studio](https://developer.android.com/studio?hl=zh-tw)**
+  - **[Java JDK](https://www.oracle.com/java/technologies/downloads/#jdk23-windows)**
+  - **[Python 3.x](https://www.python.org/)**
   - **Git**
 - **硬體需求**：
   - 至少 8GB RAM
