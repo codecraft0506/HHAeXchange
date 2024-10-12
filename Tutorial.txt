@@ -21,3 +21,9 @@ google play登入 > 如果需要(下載VPN) > 下載打卡APP > 執行Alpha.py >
 Alpha.py相關配置>
 
 需申請OpenCageGeocode金鑰 > 免費，只需使用mail註冊即可
+
+勾勾顏色
+(91, 164, 64, 255)
+
+叉叉顏色
+(232, 68, 68, 255)

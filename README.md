@@ -1,150 +1,92 @@
-# 自動打卡專案說明書
+# 自動打卡系統
+
+此專案透過 Python、Appium 和 Android Studio 模擬器來實現自動化任務執行。
+
+## 目錄
+1. [安裝需求](#安裝需求)
+2. [環境設定](#環境設定)
+3. [檔案準備](#檔案準備)
+4. [操作流程](#操作流程)
+5. [資料格式](#資料格式)
+6. [注意事項](#注意事項)
+7. [問題排除](#問題排除)
 
 ---
 
-#### 目錄
-1. **系統需求**
-2. **專案安裝步驟**
-3. **環境變數配置**
-4. **Android Studio 與模擬器設置**
-5. **打卡應用安裝與執行**
-6. **Alpha.py 配置**
-7. **問題排查**
+### 1. 安裝需求
 
----
+#### 基本軟體
+- **[Python](https://www.python.org/downloads/)**：3.8 或以上版本
+- **[Android Studio](https://developer.android.com/studio?hl=zh-tw)**：安裝並建立 Android 模擬器
+- **[Java Development Kit (JDK)](https://www.oracle.com/java/technologies/downloads/#jdk23-windows)**：21 或以上版本
+- **[Node.js](https://nodejs.org/zh-tw)**：最新穩定版
 
-### 1. 系統需求
-
-在開始安裝和配置專案之前，請確保您的系統符合以下需求：
-
-- **操作系統**：Windows 10 或更高版本
-- **軟體需求**：
-  - **[Android Studio](https://developer.android.com/studio?hl=zh-tw)**
-  - **[Java JDK](https://www.oracle.com/java/technologies/downloads/#jdk23-windows)**
-  - **[Python 3.x](https://www.python.org/)**
-  - **Git**
-- **硬體需求**：
-  - 至少 8GB RAM
-  - 10GB 可用磁碟空間
-
----
-
-### 2. 專案安裝步驟
-
-#### 2.1 克隆 GitHub 專案
-
-在命令提示字元或終端中執行以下命令來克隆您的專案：
-
+#### Python 套件安裝
+使用以下指令安裝專案所需套件：
 ```bash
-git clone https://github.com/codecraft0506/HHAeXchange.git
-```
-
-進入專案目錄：
-
-```bash
-cd HHAeXchange
-```
-
-#### 2.2 安裝 Python 依賴
-
-專案根目錄應該包含 `requirements.txt` 文件。執行以下命令來安裝所需的依賴：
-
-```bash
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
----
+#### 其他工具
+- **Appium**：
+  ```bash
+  npm install -g appium
+  ```
+- **UIAutomator2**：
+  ```bash
+  appium driver install uiautomator2
+  ```
 
-### 3. 環境變數配置
+### 2. 環境設定
 
-為了讓 Android Studio 和其他工具運行正常，請配置以下環境變數。
+#### Android Studio 設定
+1. 開啟 SDK Manager > 選擇 `Android API 35` 和 `Android SDK Platform Tools`。
+2. 使用 AVD 管理器建立模擬裝置 (如 Pixel 4)。
 
-#### 3.1 Android SDK 路徑
+#### 環境變數設定
+1. 設定 `ANDROID_HOME` 環境變數（Windows 預設路徑為 `C:\Users\您的用戶名\AppData\Local\Android\Sdk`）。
+2. 將以下路徑加入 `Path` 變數：
+   ```plaintext
+   %ANDROID_HOME%\platform-tools
+   %ANDROID_HOME%\tools
+   %ANDROID_HOME%\emulator
+   ```
 
-將以下路徑加入系統環境變數 `Path`：
+### 3. 檔案準備
+請準備以下 CSV 檔案：
+- **`virable.csv`**：參數設定
+- **`taskid.csv`**：任務 ID
+- **`Account.csv`**：帳號資訊
+- **`schedule.csv`**：排程任務
 
-- `C:\Users\{使用者名稱}\AppData\Local\Android\Sdk\platform-tools`
-- `C:\Users\{使用者名稱}\AppData\Local\Android\Sdk\emulator`
+> **備註**：確保 `schedule.csv` 最後更新，以利判斷排程。
 
-#### 3.2 Java 路徑
+### 4. 操作流程
 
-Java 通常會自動配置環境變數。如果需要手動設置，請確保以下路徑在 `Path` 中：
+1. **安裝 HHAEXCHANGE 應用程式**：在 Android Studio 模擬器中安裝。
+2. **執行 Schedule_Function.py**：產生排程檔案。
+   ```bash
+   python Schedule_Function.py
+   ```
+3. **啟動模擬器與 Appium**：開啟 Android 模擬器並啟動 Appium 伺服器。
+4. **執行 main.py**：啟動自動化流程。
+   ```bash
+   python main.py
+   ```
 
-- `C:\Program Files\Common Files\Oracle\Java\javapath`
+### 5. 資料格式
 
----
+- **時區**：若時區為空，預設為美東時間（Eastern Time）。
+- **任務 ID**：若無指定，預設使用 `"20, 22, 40, 47, 50"`。
 
-### 4. Android Studio 與模擬器設置
+### 6. 注意事項
+- **排程提醒**：當排程少於 3 項時，系統會提醒新增排程。
+- **檔案更新無須重啟**：直接更新 CSV 檔案即可，無須重啟程式。
 
-#### 4.1 安裝 Android Studio SDK
+### 7. 問題排除
 
-1. 打開 **Android Studio**，前往 `SDK Manager`。
-2. 下載以下內容：
-   - **SDK Platforms**：Android API 35
-   - **SDK Tools**：
-     - Android Emulator
-     - Android Platform-tools
-
-#### 4.2 創建 Android 模擬器
-
-1. 打開 **AVD Manager**，點擊 `Create Virtual Device`。
-2. 設定以下內容：
-   - **設備型號**：Pixel 4
-   - **API 版本**：API 35
-   - **系統映像**：Google APIs (Play Store 支援)
-   - **頁面大小**：16KB
-
-3. 完成後，啟動模擬器。
-
----
-
-### 5. 打卡應用安裝與執行
-
-1. 啟動 Android 模擬器，並登入 **Google Play** 帳戶。
-2. 如有需要，可以通過 VPN 設置模擬器的網絡來下載打卡應用（如 HHAeXchange）。
-3. 安裝完成後，確認應用可以正常運行。
-
----
-
-### 6. Alpha.py 配置
-
-#### 6.1 OpenCageGeocode 金鑰申請
-
-1. 前往 [OpenCage Geocoder](https://opencagedata.com/) 註冊帳號並獲取 API 金鑰。
-2. 將獲得的 API 金鑰添加到 `Alpha.py` 中。
-
-修改 `Alpha.py` 代碼如下：
-
-```python
-from opencage.geocoder import OpenCageGeocode
-
-# 替換為你的 OpenCageGeocode API 金鑰
-API_KEY = '你的 API 金鑰'
-geocoder = OpenCageGeocode(API_KEY)
-
-# 其他腳本操作...
-```
-
-#### 6.2 執行 Alpha.py
-
-確保 Android 模擬器已啟動並且打卡應用已安裝，然後執行 `Alpha.py`：
-
-```bash
-python Alpha.py
-```
-
----
-
-### 7. 問題排查
-
-#### 7.1 Google Play 無法下載應用
-- 嘗試使用 VPN 切換至其他地區進行下載。
-
-#### 7.2 GPS 定位不準
-- 確保模擬器設置了虛擬 GPS 定位。
-- 檢查模擬器 API 是否支援 Google Play Services。
-
-#### 7.3 Python 依賴問題
-- 如果安裝依賴時出現錯誤，請確認 `requirements.txt` 中的版本是否與當前系統相容，並手動安裝相應版本的依賴。
-
----
+- **Appium 無法連接**：確認 Android 模擬器已啟動。
+- **環境變數錯誤**：檢查 `ANDROID_HOME` 設定。
+- **排程問題**：確認 CSV 檔案格式正確，特別是 `schedule.csv`。
