@@ -132,8 +132,8 @@ def retry_login(account, password):
             if driver:
                 driver.quit()
                 driver = None
-            time.sleep(5)
-            # time.sleep(200)
+            # time.sleep(5)
+            time.sleep(200)
     if not success:
         logging.error("多次嘗試登入失敗，請檢查網路連線或帳號密碼。")
         # 在这里添加失败后的处理逻辑，例如跳过此排程或通知用户
@@ -381,33 +381,33 @@ def main():
         Schedule_Date = datetime.strptime(Schedule_Date_str, '%Y-%m-%d')
         Schedule_Date_formatted = Schedule_Date.strftime("%m/%d/%Y")
 
-        # # 如果时区为空，默认使用美东时间
-        # if pd.isna(Time_Zone) or Time_Zone.strip() == '':
-        #     Time_Zone = 'America/New_York'  # 默认美东时间
+        # 如果时区为空，默认使用美东时间
+        if pd.isna(Time_Zone) or Time_Zone.strip() == '':
+            Time_Zone = 'America/New_York'  # 默认美东时间
 
-        # # 设置时区
-        # local_tz = pytz.timezone(Time_Zone)
-        # now_utc = datetime.now(pytz.utc)  # 获取当前UTC时间
-        # now_local = now_utc.astimezone(local_tz)  # 转换为指定时区时间
+        # 设置时区
+        local_tz = pytz.timezone(Time_Zone)
+        now_utc = datetime.now(pytz.utc)  # 获取当前UTC时间
+        now_local = now_utc.astimezone(local_tz)  # 转换为指定时区时间
 
-        # # 解析 action_time_str
-        # try:
-        #     # 根据 CSV 中的时间格式进行解析
-        #     action_time = datetime.strptime(action_time_str, '%Y-%m-%d %H:%M:%S')
-        #     action_time = local_tz.localize(action_time)
-        # except ValueError as ve:
-        #     logging.error(f"无法解析时间 '{action_time_str}'，错误: {ve}")
-        #     continue  # 如果解析失败，跳过当前循环
+        # 解析 action_time_str
+        try:
+            # 根据 CSV 中的时间格式进行解析
+            action_time = datetime.strptime(action_time_str, '%Y-%m-%d %H:%M:%S')
+            action_time = local_tz.localize(action_time)
+        except ValueError as ve:
+            logging.error(f"无法解析时间 '{action_time_str}'，错误: {ve}")
+            continue  # 如果解析失败，跳过当前循环
 
-        # # 計算當前時間與打卡時間之間的差異
-        # time_difference = (action_time - now_local).total_seconds()
+        # 計算當前時間與打卡時間之間的差異
+        time_difference = (action_time - now_local).total_seconds()
 
-        # # 如果當前時間尚未達到打卡時間，則計算等待的時間（幾時幾分幾秒）
-        # if time_difference > 0:
-        #     hours, remainder = divmod(time_difference, 3600)  # 計算小時
-        #     minutes, seconds = divmod(remainder, 60)  # 計算分鐘和秒
-        #     logging.info(f"等待 {int(hours)} 小時 {int(minutes)} 分 {int(seconds)} 秒，執行 {user} 在 {action_time} 的 {action} 動作")
-        #     time.sleep(time_difference)
+        # 如果當前時間尚未達到打卡時間，則計算等待的時間（幾時幾分幾秒）
+        if time_difference > 0:
+            hours, remainder = divmod(time_difference, 3600)  # 計算小時
+            minutes, seconds = divmod(remainder, 60)  # 計算分鐘和秒
+            logging.info(f"等待 {int(hours)} 小時 {int(minutes)} 分 {int(seconds)} 秒，執行 {user} 在 {action_time} 的 {action} 動作")
+            time.sleep(time_difference)
 
         # 虛擬機模擬定位
         if isinstance(address, str) and not pd.isna(address):
