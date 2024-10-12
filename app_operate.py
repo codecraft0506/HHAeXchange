@@ -27,7 +27,7 @@ def login(driver,wait,account,password):
 
 # 打上班卡步驟
 def Clock_in(wait):
-    print('當你上班打卡成功')
+    print('上班打卡成功')
     #wait.until(EC.element_to_be_clickable((By.XPATH, '//android.widget.Button[@resource-id="com.hhaexchange.caregiver:id/btn_login"]'))).click()
 
 # 打下班卡步驟
@@ -105,5 +105,6 @@ def Clock_out(task_ids,driver,wait):
     #         break  # 滾動到底，停止滾動
     
     # 添加save.click()即可完成此涵式
+    print('下班打卡成功')
     # wait.until(EC.element_to_be_clickable((By.XPATH, '//android.widget.Button[@content-desc="Save"]'))).click()
-    print('當你下班打卡成功')
+    
