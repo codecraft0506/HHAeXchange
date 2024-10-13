@@ -17,7 +17,7 @@ from Schedule_Function import load_schedule_with_mod_time
 from Schedule_Function import get_new_shifts
 from app_operate import clear_app_data, login, Clock_in, Clock_out
 from Set_Location import get_lat_long, set_virtual_location
-from notify import send_line_notification
+from notify import send_notification
 
 file_lock = threading.Lock()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -52,7 +52,7 @@ def check_action_schedule():
         action_df = pd.read_csv(action_schedule_path)
         if len(action_df) <= 3:
             logging.info("提醒用戶更新 Schedule.csv")
-            send_line_notification("需要更新 Schedule.csv了")
+            send_notification("需要更新 Schedule.csv了")
     else:
         logging.error("Action_Schedule.csv 不存在")
 
@@ -137,7 +137,7 @@ def retry_login(account, password):
     if not success:
         logging.error("多次嘗試登入失敗，請檢查網路連線或帳號密碼。")
         # 在这里添加失败后的处理逻辑，例如跳过此排程或通知用户
-        send_line_notification("多次嘗試登入失敗，請檢查網路連線或帳號密碼。", account)
+        send_notification("多次嘗試登入失敗，請檢查網路連線或帳號密碼。", account)
         return None, None
 
 # 根据 action 执行操作
@@ -167,15 +167,15 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
 
         if pixel_color == success_color:
             logging.info("狀態：成功")
-            send_line_notification("打卡成功", user)
+            send_notification("打卡成功", user)
             return "成功"
         elif pixel_color == failure_color:
             logging.info("狀態：失敗")
-            send_line_notification("打卡失敗", user)
+            send_notification("打卡失敗", user)
             return "失敗"
         else:
             logging.info("狀態：未打卡")
-            send_line_notification("未打卡", user)
+            send_notification("未打卡", user)
             return "未打卡"
 
     # 等待列表加载完成
@@ -240,7 +240,7 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
                             status = check_status(pixel_color)
                         else:
                             logging.error("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態")
-                            send_line_notification("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態", user)
+                            send_notification("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態", user)
                         return
 
                 elif action_type == "Punch Out" and punch_out_text == Punch_Out_Time and date_text == Schedule_Date_formatted:
@@ -279,7 +279,7 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
                             status = check_status(pixel_color)
                         else:
                             logging.error("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態")
-                            send_line_notification("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態", user)
+                            send_notification("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態", user)
                         return
 
         # 每次滾動後更新滾動次數

@@ -3,14 +3,13 @@ import requests
 from dotenv import load_dotenv
 load_dotenv()
 
-line_token = os.getenv('LINE_TOKEN')
+DC_URL = os.environ.get('DC_URL')
 
-def send_line_notification(message, user=''):
-    headers = {
-        'Authorization': f'Bearer {line_token}',
-        'Content-Type': 'application/x-www-form-urlencoded',
-    }
+def send_notification(message, user=''):
     payload = {
-        'message': f"{user} {message}",
+        'content': f"{user} {message}",
     }
-    requests.post('https://notify-api.line.me/api/notify', headers=headers, data=payload)
+    requests.post(DC_URL, json=payload)
+
+if __name__ == '__main__':
+    send_notification('DC Notify Test', 'Ryan')
