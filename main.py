@@ -69,6 +69,7 @@ def check_action_schedule(last_mod_time):
             send_notification("需要更新 Schedule.csv了")
     else:
         logging.error("Action_Schedule.csv 不存在")
+        send_notification("Action_Schedule.csv 不存在")
 
 
 def update_action_schedule(schedule_df, use_auto_update=False):
@@ -122,6 +123,7 @@ def update_action_schedule(schedule_df, use_auto_update=False):
                 date_format='%Y-%m-%d %H:%M:%S'
             )
             logging.info("Action_Schedule.csv 已更新，當前記錄數: %d", len(combined_df))
+            send_notification("Action_Schedule.csv 已更新，當前記錄數: %d", len(combined_df))
         else:
             new_shifts_df.to_csv(
                 action_schedule_path, 
@@ -129,8 +131,10 @@ def update_action_schedule(schedule_df, use_auto_update=False):
                 date_format='%Y-%m-%d %H:%M:%S'
             )
             logging.info("Action_Schedule.csv 不存在，創建新的文件，當前記錄數: %d", len(new_shifts_df))
+            send_notification("Action_Schedule.csv 不存在，創建新的文件，當前記錄數: %d", len(new_shifts_df))
 
         logging.info("更新完成，當前記錄數: %d", len(combined_df) if 'combined_df' in locals() else len(new_shifts_df))
+        send_notification("更新完成，當前記錄數: %d", len(combined_df) if 'combined_df' in locals() else len(new_shifts_df))
 
 
 # 使用多线程更新 Action_Schedule.csv
@@ -265,122 +269,122 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
                 # 根據 action 匹配時間和日期
                 if action_type == "Punch In" and punch_in_text == Punch_In_Time and date_text == Schedule_Date_formatted:
                     if Clock:
-                        # logging.info(f"找到匹配上班日期: {date_text} 和時間: {punch_in_text}")
-                        # item.click()
-                        # Clock_in(wait)  # 執行打卡
+                        logging.info(f"找到匹配上班日期: {date_text} 和時間: {punch_in_text}")
+                        item.click()
+                        Clock_in(wait)  # 執行打卡
                         return
                     else:
-                        # # 1. 截取整個畫面
-                        # screenshot = driver.get_screenshot_as_base64()
+                        # 1. 截取整個畫面
+                        screenshot = driver.get_screenshot_as_base64()
 
-                        # # 2. 使用 Pillow 讀取截圖
-                        # image = Image.open(io.BytesIO(base64.b64decode(screenshot)))
-                        # if imgStartTime is not None:
-                        #     # 3. 元素的位置和大小
-                        #     location = imgStartTime.location
-                        #     size = imgStartTime.size
-                        #     x, y = location['x'], location['y']
-                        #     width, height = size['width'], size['height']
+                        # 2. 使用 Pillow 讀取截圖
+                        image = Image.open(io.BytesIO(base64.b64decode(screenshot)))
+                        if imgStartTime is not None:
+                            # 3. 元素的位置和大小
+                            location = imgStartTime.location
+                            size = imgStartTime.size
+                            x, y = location['x'], location['y']
+                            width, height = size['width'], size['height']
 
-                        #     # 4. 定義裁剪區域，(left, upper, right, lower)
-                        #     box = (x, y, x + width, y + height)
+                            # 4. 定義裁剪區域，(left, upper, right, lower)
+                            box = (x, y, x + width, y + height)
 
-                        #     # 5. 裁剪圖像
-                        #     imgStartTime_image = image.crop(box)
-                        #     # 測試用截圖
-                        #     # imgStartTime_image.save("imgStartTime_image.png")
-                        #     # 6. 獲取最左側且垂直至中的像素顏色
-                        #     left_x = 0  # 水平最左側
-                        #     center_y = height // 2  # 垂直中間
-                        #     pixel_color = imgStartTime_image.getpixel((left_x, center_y))  # 使用 left_x 和 center_y
+                            # 5. 裁剪圖像
+                            imgStartTime_image = image.crop(box)
+                            # 測試用截圖
+                            # imgStartTime_image.save("imgStartTime_image.png")
+                            # 6. 獲取最左側且垂直至中的像素顏色
+                            left_x = 0  # 水平最左側
+                            center_y = height // 2  # 垂直中間
+                            pixel_color = imgStartTime_image.getpixel((left_x, center_y))  # 使用 left_x 和 center_y
 
-                        #     status = check_status(pixel_color)
-                        # else:
-                        #     logging.error("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態")
-                        #     send_notification("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態", user)
+                            status = check_status(pixel_color)
+                        else:
+                            logging.error("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態")
+                            send_notification("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態", user)
                         return
 
                 elif action_type == "Punch Out" and punch_out_text == Punch_Out_Time and date_text == Schedule_Date_formatted:
                     if Clock:
-                        # # Step 1: 將 punch_in_complete_text 轉換為 datetime 對象 (僅時間)
-                        # try:
-                        #     punch_in_complete_time = datetime.strptime(punch_in_complete_text, "%I:%M %p")
-                        # except ValueError as e:
-                        #     logging.error(f"無法解析 punch_in_complete_text 為時間: {punch_in_complete_text}，錯誤: {e}")
-                        #     return
+                        # Step 1: 將 punch_in_complete_text 轉換為 datetime 對象 (僅時間)
+                        try:
+                            punch_in_complete_time = datetime.strptime(punch_in_complete_text, "%I:%M %p")
+                        except ValueError as e:
+                            logging.error(f"無法解析 punch_in_complete_text 為時間: {punch_in_complete_text}，錯誤: {e}")
+                            return
                         
-                        # # Step 2: 將 date_text 轉換為日期對象
-                        # try:
-                        #     punch_in_date = datetime.strptime(date_text, "%m/%d/%Y")  # 假設 date_text 的格式是 MM/DD/YYYY
-                        # except ValueError as e:
-                        #     logging.error(f"無法解析 date_text 為日期: {date_text}，錯誤: {e}")
-                        #     return
+                        # Step 2: 將 date_text 轉換為日期對象
+                        try:
+                            punch_in_date = datetime.strptime(date_text, "%m/%d/%Y")  # 假設 date_text 的格式是 MM/DD/YYYY
+                        except ValueError as e:
+                            logging.error(f"無法解析 date_text 為日期: {date_text}，錯誤: {e}")
+                            return
                         
-                        # # Step 3: 將 punch_in_complete_time 與 date_text 日期合併
-                        # punch_in_complete_time = punch_in_date.replace(hour=punch_in_complete_time.hour, minute=punch_in_complete_time.minute, second=0, microsecond=0)
-                        # # Step 4: 
-                        # # 设置时区
-                        # local_tz = pytz.timezone(Time_Zone)
-                        # now_utc = datetime.now(pytz.utc)  # 获取当前UTC时间
-                        # now_local = now_utc.astimezone(local_tz)  # 转换为指定时区时间
+                        # Step 3: 將 punch_in_complete_time 與 date_text 日期合併
+                        punch_in_complete_time = punch_in_date.replace(hour=punch_in_complete_time.hour, minute=punch_in_complete_time.minute, second=0, microsecond=0)
+                        # Step 4: 
+                        # 设置时区
+                        local_tz = pytz.timezone(Time_Zone)
+                        now_utc = datetime.now(pytz.utc)  # 获取当前UTC时间
+                        now_local = now_utc.astimezone(local_tz)  # 转换为指定时区时间
 
-                        # # 計算兩者時間差
-                        # time_difference = now_local - punch_in_complete_time
-                        # # Step 6: 檢查時間差是否大於或等於 8 小時
-                        # if time_difference >= timedelta(hours=8):
-                        #     logging.info(f"找到匹配下班日期: {date_text} 和時間: {punch_out_text}")
-                        #     item.click()
-                        #     logging.info('執行下班打卡操作')
-                        #     Clock_out(task_ids, driver, wait)  # 執行打卡
-                        # else:
-                        #     logging.warning(f"未滿8小時，無法打卡。已工作 {time_difference.total_seconds() / 3600:.2f} 小時")
-                        #     send_notification(f"未滿8小時，無法打卡。已工作 {time_difference.total_seconds() / 3600:.2f} 小時", user)
+                        # 計算兩者時間差
+                        time_difference = now_local - punch_in_complete_time
+                        # Step 6: 檢查時間差是否大於或等於 8 小時
+                        if time_difference >= timedelta(hours=8):
+                            logging.info(f"找到匹配下班日期: {date_text} 和時間: {punch_out_text}")
+                            item.click()
+                            logging.info('執行下班打卡操作')
+                            Clock_out(task_ids, driver, wait)  # 執行打卡
+                        else:
+                            logging.warning(f"未滿8小時，無法打卡。已工作 {time_difference.total_seconds() / 3600:.2f} 小時")
+                            send_notification(f"未滿8小時，無法打卡。已工作 {time_difference.total_seconds() / 3600:.2f} 小時", user)
                             
-                        #     # Step 7: 暫停 time_difference 時間後再執行 Clock_out
-                        #     sleep_time = time_difference.total_seconds()
-                        #     logging.info(f"將在 {sleep_time} 秒後執行打卡...")
-                        #     time.sleep(sleep_time)  # 暫停指定的秒數
+                            # Step 7: 暫停 time_difference 時間後再執行 Clock_out
+                            sleep_time = time_difference.total_seconds()
+                            logging.info(f"將在 {sleep_time} 秒後執行打卡...")
+                            time.sleep(sleep_time)  # 暫停指定的秒數
 
-                        #     # 重新執行打卡操作
-                        #     logging.info('執行下班打卡操作')
-                        #     # 清除應用快取並啟動 Appium session
-                        #     driver, wait = retry_login(account, password)
+                            # 重新執行打卡操作
+                            logging.info('執行下班打卡操作')
+                            # 清除應用快取並啟動 Appium session
+                            driver, wait = retry_login(account, password)
 
-                        #     if driver and wait:
-                        #         # 執行打卡操作
-                        #         execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, Clock=True)
+                            if driver and wait:
+                                # 執行打卡操作
+                                execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, Clock=True)
 
                         return
                     else:
-                        # # 1. 截取整個畫面
-                        # screenshot = driver.get_screenshot_as_base64()
+                        # 1. 截取整個畫面
+                        screenshot = driver.get_screenshot_as_base64()
 
-                        # # 2. 使用 Pillow 讀取截圖
-                        # image = Image.open(io.BytesIO(base64.b64decode(screenshot)))
-                        # # 先確定 imgEndTime 是否存在
-                        # if imgEndTime is not None:
-                        #     # 3. 元素的位置和大小
-                        #     location = imgEndTime.location
-                        #     size = imgEndTime.size
-                        #     x, y = location['x'], location['y']
-                        #     width, height = size['width'], size['height']
+                        # 2. 使用 Pillow 讀取截圖
+                        image = Image.open(io.BytesIO(base64.b64decode(screenshot)))
+                        # 先確定 imgEndTime 是否存在
+                        if imgEndTime is not None:
+                            # 3. 元素的位置和大小
+                            location = imgEndTime.location
+                            size = imgEndTime.size
+                            x, y = location['x'], location['y']
+                            width, height = size['width'], size['height']
 
-                        #     # 4. 定義裁剪區域，(left, upper, right, lower)
-                        #     box = (x, y, x + width, y + height)
+                            # 4. 定義裁剪區域，(left, upper, right, lower)
+                            box = (x, y, x + width, y + height)
 
-                        #     # 5. 裁剪圖像
-                        #     imgEndTime_image = image.crop(box)
-                        #     # 測試用截圖
-                        #     # imgEndTime_image.save("imgEndTime_image.png")
-                        #     # 6. 獲取最左側且垂直至中的像素顏色
-                        #     left_x = 0  # 水平最左側
-                        #     center_y = height // 2  # 垂直中間
-                        #     pixel_color = imgEndTime_image.getpixel((left_x, center_y))  # 使用 left_x 和 center_y
+                            # 5. 裁剪圖像
+                            imgEndTime_image = image.crop(box)
+                            # 測試用截圖
+                            # imgEndTime_image.save("imgEndTime_image.png")
+                            # 6. 獲取最左側且垂直至中的像素顏色
+                            left_x = 0  # 水平最左側
+                            center_y = height // 2  # 垂直中間
+                            pixel_color = imgEndTime_image.getpixel((left_x, center_y))  # 使用 left_x 和 center_y
 
-                        #     status = check_status(pixel_color)
-                        # else:
-                        #     logging.error("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態")
-                        #     send_notification("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態", user)
+                            status = check_status(pixel_color)
+                        else:
+                            logging.error("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態")
+                            send_notification("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態", user)
                         return
 
         # 每次滾動後更新滾動次數
@@ -484,33 +488,33 @@ def main():
         Schedule_Date = datetime.strptime(Schedule_Date_str, '%Y-%m-%d')
         Schedule_Date_formatted = Schedule_Date.strftime("%m/%d/%Y")
 
-        # # 如果时区为空，默认使用美东时间
-        # if pd.isna(Time_Zone) or Time_Zone.strip() == '':
-        #     Time_Zone = 'America/New_York'  # 默认美东时间
+        # 如果时区为空，默认使用美东时间
+        if pd.isna(Time_Zone) or Time_Zone.strip() == '':
+            Time_Zone = 'America/New_York'  # 默认美东时间
 
-        # # 设置时区
-        # local_tz = pytz.timezone(Time_Zone)
-        # now_utc = datetime.now(pytz.utc)  # 获取当前UTC时间
-        # now_local = now_utc.astimezone(local_tz)  # 转换为指定时区时间
+        # 设置时区
+        local_tz = pytz.timezone(Time_Zone)
+        now_utc = datetime.now(pytz.utc)  # 获取当前UTC时间
+        now_local = now_utc.astimezone(local_tz)  # 转换为指定时区时间
 
-        # # 解析 action_time_str
-        # try:
-        #     # 根据 CSV 中的时间格式进行解析
-        #     action_time = datetime.strptime(action_time_str, '%Y-%m-%d %H:%M:%S')
-        #     action_time = local_tz.localize(action_time)
-        # except ValueError as ve:
-        #     logging.error(f"无法解析时间 '{action_time_str}'，错误: {ve}")
-        #     continue  # 如果解析失败，跳过当前循环
+        # 解析 action_time_str
+        try:
+            # 根据 CSV 中的时间格式进行解析
+            action_time = datetime.strptime(action_time_str, '%Y-%m-%d %H:%M:%S')
+            action_time = local_tz.localize(action_time)
+        except ValueError as ve:
+            logging.error(f"无法解析时间 '{action_time_str}'，错误: {ve}")
+            continue  # 如果解析失败，跳过当前循环
 
-        # # 計算當前時間與打卡時間之間的差異
-        # time_difference = (action_time - now_local).total_seconds()
+        # 計算當前時間與打卡時間之間的差異
+        time_difference = (action_time - now_local).total_seconds()
 
-        # # 如果當前時間尚未達到打卡時間，則計算等待的時間（幾時幾分幾秒）
-        # if time_difference > 0:
-        #     hours, remainder = divmod(time_difference, 3600)  # 計算小時
-        #     minutes, seconds = divmod(remainder, 60)  # 計算分鐘和秒
-        #     logging.info(f"等待 {int(hours)} 小時 {int(minutes)} 分 {int(seconds)} 秒，執行 {user} 在 {action_time} 的 {action} 動作")
-        #     time.sleep(time_difference)
+        # 如果當前時間尚未達到打卡時間，則計算等待的時間（幾時幾分幾秒）
+        if time_difference > 0:
+            hours, remainder = divmod(time_difference, 3600)  # 計算小時
+            minutes, seconds = divmod(remainder, 60)  # 計算分鐘和秒
+            logging.info(f"等待 {int(hours)} 小時 {int(minutes)} 分 {int(seconds)} 秒，執行 {user} 在 {action_time} 的 {action} 動作")
+            time.sleep(time_difference)
 
         # 虛擬機模擬定位
         if isinstance(address, str) and not pd.isna(address):

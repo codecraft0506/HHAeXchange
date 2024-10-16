@@ -32,7 +32,7 @@ def Clock_in(wait):
     wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.Button[@resource-id='com.android.permissioncontroller:id/permission_allow_foreground_only_button']"))).click()
     wait.until(EC.element_to_be_clickable((By.XPATH, '//android.widget.Button[@resource-id="com.hhaexchange.caregiver:id/btn_clock_in"]'))).click()
     wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.TextView[@resource-id='com.hhaexchange.caregiver:id/label_title' and @text='GPS']"))).click()
-    # wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.Button[@resource-id='com.hhaexchange.caregiver:id/btn_confirm']"))).click()
+    wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.Button[@resource-id='com.hhaexchange.caregiver:id/btn_confirm']"))).click()
     print('上班打卡成功')
     
 # 打下班卡步驟
@@ -109,7 +109,6 @@ def Clock_out(task_ids,driver,wait):
         if not task_elements or task_elements[-1].text == last_element.text:
             break  # 滾動到底，停止滾動
     
-    # 添加save.click()即可完成此涵式
+    wait.until(EC.element_to_be_clickable((By.XPATH, '//android.widget.Button[@content-desc="Save"]'))).click()
     print('下班打卡成功')
-    # wait.until(EC.element_to_be_clickable((By.XPATH, '//android.widget.Button[@content-desc="Save"]'))).click()
     
