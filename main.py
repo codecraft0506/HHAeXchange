@@ -7,14 +7,14 @@ import io
 import base64
 import logging
 from PIL import Image
-from datetime import datetime
+from datetime import datetime, timedelta
 from appium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from Schedule_Function import load_schedule_with_mod_time
-from Schedule_Function import get_new_shifts
+from Schedule_Function import get_new_shifts, auto_update_schedule
 from app_operate import clear_app_data, login, Clock_in, Clock_out
 from Set_Location import get_lat_long, set_virtual_location
 from notify import send_notification
@@ -45,65 +45,121 @@ def setup_app():
         logging.error(f"初始化 Appium driver 时发生错误: {e}")
         return None
 
-# 读取 Action_Schedule.csv 并检查数据笔数
-def check_action_schedule():
+def check_action_schedule(last_mod_time):
     action_schedule_path = os.path.join(script_dir, 'Action_Schedule.csv')
     if os.path.exists(action_schedule_path):
         action_df = pd.read_csv(action_schedule_path)
-        if len(action_df) <= 3:
-            logging.info("提醒用戶更新 Schedule.csv")
+
+        # 將 float64 列轉換為 object
+        action_df = action_df.astype({col: object for col in action_df.select_dtypes(include=['float64']).columns})
+
+        # 填充缺失值
+        action_df.fillna('', inplace=True)
+
+        action_count = len(action_df)
+
+        if action_count <= 2:
+            logging.info("班表數量少於2筆，開始自動更新")
+            schedule_df, current_mod_time = load_schedule_with_mod_time()
+            if current_mod_time == last_mod_time:
+                logging.info("班表數量少於2筆且Schedule.csv 未更新，開始自動更新")
+                update_action_schedule(schedule_df, use_auto_update=True)
+        elif action_count <= 3:
+            logging.info("提醒用户更新 Schedule.csv")
             send_notification("需要更新 Schedule.csv了")
     else:
         logging.error("Action_Schedule.csv 不存在")
 
-# 使用更新后的 load_schedule_with_mod_time 来检查更新时间
-def check_schedule_update(last_mod_time):
-    schedule_df, current_mod_time = load_schedule_with_mod_time()
-    if current_mod_time != last_mod_time:
-        logging.info("Schedule.csv 有更新，開始更新 Action_Schedule.csv")
-        update_action_schedule(schedule_df)
-        return current_mod_time
-    return last_mod_time
 
-# 更新 Action_Schedule.csv 的逻辑
-def update_action_schedule(schedule_df):
+def update_action_schedule(schedule_df, use_auto_update=False):
     with file_lock:
-        # 获取新班次
-        new_shifts_df = get_new_shifts()
+        if use_auto_update:
+            new_shifts_df = auto_update_schedule()
+        else:
+            new_shifts_df = get_new_shifts()
 
-        # 定义文件路径
+        # 确保日期列格式一致
+        date_columns = ['Time', 'Original_Punch_In_Time', 'Origin_Date']
+        for col in date_columns:
+            new_shifts_df[col] = pd.to_datetime(new_shifts_df[col])
+
+        new_shifts_df['Origin_Date'] = new_shifts_df['Origin_Date'].dt.date
+
+        # 去重
+        new_shifts_df.drop_duplicates(inplace=True)
+
         action_schedule_path = os.path.join(script_dir, 'Action_Schedule.csv')
 
         if os.path.exists(action_schedule_path):
-            # 读取现有的班次
-            existing_shifts_df = pd.read_csv(action_schedule_path)
+            existing_shifts_df = pd.read_csv(
+                action_schedule_path, 
+                parse_dates=['Time', 'Original_Punch_In_Time', 'Origin_Date']
+            )
 
-            # 合并并去重
-            combined_shifts_df = pd.concat([existing_shifts_df, new_shifts_df], ignore_index=True)
-            combined_shifts_df.drop_duplicates(subset=['User', 'Action', 'Origin_Date', 'Original_Punch_In_Time'], inplace=True)
+            for col in date_columns:
+                existing_shifts_df[col] = pd.to_datetime(existing_shifts_df[col])
 
-            # 可选：删除已过期的班次
-            today = datetime.now().strftime('%Y-%m-%d')
-            combined_shifts_df = combined_shifts_df[combined_shifts_df['Origin_Date'] >= today]
+            existing_shifts_df['Origin_Date'] = existing_shifts_df['Origin_Date'].dt.date
 
-            # 保存更新
-            combined_shifts_df.to_csv(action_schedule_path, index=False)
+            existing_shifts_df.drop_duplicates(inplace=True)
+
+            combined_df = pd.concat([existing_shifts_df, new_shifts_df], ignore_index=True)
+
+            # 去重
+            combined_df.drop_duplicates(
+                subset=['User', 'Time', 'Original_Punch_In_Time', 'Origin_Date'], 
+                inplace=True
+            )
+
+            combined_df.sort_values(by='Time', inplace=True)
+
+            today = datetime.now().date()
+            combined_df = combined_df[combined_df['Origin_Date'] >= today]
+
+            combined_df.to_csv(
+                action_schedule_path, 
+                index=False, 
+                date_format='%Y-%m-%d %H:%M:%S'
+            )
+            logging.info("Action_Schedule.csv 已更新，當前記錄數: %d", len(combined_df))
         else:
-            # 保存新的班次
-            new_shifts_df.to_csv(action_schedule_path, index=False)
+            new_shifts_df.to_csv(
+                action_schedule_path, 
+                index=False, 
+                date_format='%Y-%m-%d %H:%M:%S'
+            )
+            logging.info("Action_Schedule.csv 不存在，創建新的文件，當前記錄數: %d", len(new_shifts_df))
 
-        logging.info("Action_Schedule.csv 已更新")
+        logging.info("更新完成，當前記錄數: %d", len(combined_df) if 'combined_df' in locals() else len(new_shifts_df))
+
 
 # 使用多线程更新 Action_Schedule.csv
 def schedule_update_thread():
     schedule_df, last_mod_time = load_schedule_with_mod_time()
+    
     while True:
-        time.sleep(60)
+        time.sleep(60)  # 每分钟检查一次
         schedule_df, current_mod_time = load_schedule_with_mod_time()
+        
         if current_mod_time != last_mod_time:
             logging.info("Schedule.csv 有更新，開始更新 Action_Schedule.csv")
             update_action_schedule(schedule_df)
             last_mod_time = current_mod_time
+
+        action_schedule_path = os.path.join(script_dir, 'Action_Schedule.csv')
+        if os.path.exists(action_schedule_path):
+            action_df = pd.read_csv(action_schedule_path)
+            
+            if len(action_df) <= 2:
+                logging.info("提醒用戶更新 Schedule.csv")
+                if current_mod_time == last_mod_time:
+                    logging.info("Schedule.csv 未更新，使用 auto_update_schedule() 來新增班表")
+                    update_action_schedule(schedule_df, use_auto_update=True)
+            elif len(action_df) <= 3:
+                logging.info("提醒用戶更新 Schedule.csv")
+                send_notification("需要更新 Schedule.csv了")
+        else:
+            logging.error("Action_Schedule.csv 不存在")
 
 def retry_login(account, password):
     max_attempts = 10
@@ -141,7 +197,7 @@ def retry_login(account, password):
         return None, None
 
 # 根据 action 执行操作
-def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, Clock=True):
+def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=True):
     if driver is None or wait is None:
         logging.error("driver 或 wait 为空，无法执行操作")
         return
@@ -204,82 +260,127 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
                 date_text = get_element_text(item, './/android.widget.TextView[@resource-id="com.hhaexchange.caregiver:id/lbl_date"]', "無日期")
                 imgStartTime = get_element(item, './/android.widget.ImageView[@resource-id="com.hhaexchange.caregiver:id/imgStartTime"]')
                 imgEndTime = get_element(item, './/android.widget.ImageView[@resource-id="com.hhaexchange.caregiver:id/imgEndTime"]')
+                punch_in_complete_text = get_element_text(item, '//android.widget.TextView[@resource-id="com.hhaexchange.caregiver:id/lbl_visit_start_time"]')
 
                 # 根據 action 匹配時間和日期
                 if action_type == "Punch In" and punch_in_text == Punch_In_Time and date_text == Schedule_Date_formatted:
                     if Clock:
-                        logging.info(f"找到匹配上班日期: {date_text} 和時間: {punch_in_text}")
-                        item.click()
-                        Clock_in(wait)  # 執行打卡
+                        # logging.info(f"找到匹配上班日期: {date_text} 和時間: {punch_in_text}")
+                        # item.click()
+                        # Clock_in(wait)  # 執行打卡
                         return
                     else:
-                        # 1. 截取整個畫面
-                        screenshot = driver.get_screenshot_as_base64()
+                        # # 1. 截取整個畫面
+                        # screenshot = driver.get_screenshot_as_base64()
 
-                        # 2. 使用 Pillow 讀取截圖
-                        image = Image.open(io.BytesIO(base64.b64decode(screenshot)))
-                        if imgStartTime is not None:
-                            # 3. 元素的位置和大小
-                            location = imgStartTime.location
-                            size = imgStartTime.size
-                            x, y = location['x'], location['y']
-                            width, height = size['width'], size['height']
+                        # # 2. 使用 Pillow 讀取截圖
+                        # image = Image.open(io.BytesIO(base64.b64decode(screenshot)))
+                        # if imgStartTime is not None:
+                        #     # 3. 元素的位置和大小
+                        #     location = imgStartTime.location
+                        #     size = imgStartTime.size
+                        #     x, y = location['x'], location['y']
+                        #     width, height = size['width'], size['height']
 
-                            # 4. 定義裁剪區域，(left, upper, right, lower)
-                            box = (x, y, x + width, y + height)
+                        #     # 4. 定義裁剪區域，(left, upper, right, lower)
+                        #     box = (x, y, x + width, y + height)
 
-                            # 5. 裁剪圖像
-                            imgStartTime_image = image.crop(box)
-                            # 測試用截圖
-                            # imgStartTime_image.save("imgStartTime_image.png")
-                            # 6. 獲取最左側且垂直至中的像素顏色
-                            left_x = 0  # 水平最左側
-                            center_y = height // 2  # 垂直中間
-                            pixel_color = imgStartTime_image.getpixel((left_x, center_y))  # 使用 left_x 和 center_y
+                        #     # 5. 裁剪圖像
+                        #     imgStartTime_image = image.crop(box)
+                        #     # 測試用截圖
+                        #     # imgStartTime_image.save("imgStartTime_image.png")
+                        #     # 6. 獲取最左側且垂直至中的像素顏色
+                        #     left_x = 0  # 水平最左側
+                        #     center_y = height // 2  # 垂直中間
+                        #     pixel_color = imgStartTime_image.getpixel((left_x, center_y))  # 使用 left_x 和 center_y
 
-                            status = check_status(pixel_color)
-                        else:
-                            logging.error("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態")
-                            send_notification("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態", user)
+                        #     status = check_status(pixel_color)
+                        # else:
+                        #     logging.error("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態")
+                        #     send_notification("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態", user)
                         return
 
                 elif action_type == "Punch Out" and punch_out_text == Punch_Out_Time and date_text == Schedule_Date_formatted:
                     if Clock:
-                        logging.info(f"找到匹配下班日期: {date_text} 和時間: {punch_out_text}")
-                        item.click()
-                        logging.info('執行下班打卡操作')
-                        Clock_out(task_ids, driver, wait)  # 執行打卡
+                        # # Step 1: 將 punch_in_complete_text 轉換為 datetime 對象 (僅時間)
+                        # try:
+                        #     punch_in_complete_time = datetime.strptime(punch_in_complete_text, "%I:%M %p")
+                        # except ValueError as e:
+                        #     logging.error(f"無法解析 punch_in_complete_text 為時間: {punch_in_complete_text}，錯誤: {e}")
+                        #     return
+                        
+                        # # Step 2: 將 date_text 轉換為日期對象
+                        # try:
+                        #     punch_in_date = datetime.strptime(date_text, "%m/%d/%Y")  # 假設 date_text 的格式是 MM/DD/YYYY
+                        # except ValueError as e:
+                        #     logging.error(f"無法解析 date_text 為日期: {date_text}，錯誤: {e}")
+                        #     return
+                        
+                        # # Step 3: 將 punch_in_complete_time 與 date_text 日期合併
+                        # punch_in_complete_time = punch_in_date.replace(hour=punch_in_complete_time.hour, minute=punch_in_complete_time.minute, second=0, microsecond=0)
+                        # # Step 4: 
+                        # # 设置时区
+                        # local_tz = pytz.timezone(Time_Zone)
+                        # now_utc = datetime.now(pytz.utc)  # 获取当前UTC时间
+                        # now_local = now_utc.astimezone(local_tz)  # 转换为指定时区时间
+
+                        # # 計算兩者時間差
+                        # time_difference = now_local - punch_in_complete_time
+                        # # Step 6: 檢查時間差是否大於或等於 8 小時
+                        # if time_difference >= timedelta(hours=8):
+                        #     logging.info(f"找到匹配下班日期: {date_text} 和時間: {punch_out_text}")
+                        #     item.click()
+                        #     logging.info('執行下班打卡操作')
+                        #     Clock_out(task_ids, driver, wait)  # 執行打卡
+                        # else:
+                        #     logging.warning(f"未滿8小時，無法打卡。已工作 {time_difference.total_seconds() / 3600:.2f} 小時")
+                        #     send_notification(f"未滿8小時，無法打卡。已工作 {time_difference.total_seconds() / 3600:.2f} 小時", user)
+                            
+                        #     # Step 7: 暫停 time_difference 時間後再執行 Clock_out
+                        #     sleep_time = time_difference.total_seconds()
+                        #     logging.info(f"將在 {sleep_time} 秒後執行打卡...")
+                        #     time.sleep(sleep_time)  # 暫停指定的秒數
+
+                        #     # 重新執行打卡操作
+                        #     logging.info('執行下班打卡操作')
+                        #     # 清除應用快取並啟動 Appium session
+                        #     driver, wait = retry_login(account, password)
+
+                        #     if driver and wait:
+                        #         # 執行打卡操作
+                        #         execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, Clock=True)
+
                         return
                     else:
-                        # 1. 截取整個畫面
-                        screenshot = driver.get_screenshot_as_base64()
+                        # # 1. 截取整個畫面
+                        # screenshot = driver.get_screenshot_as_base64()
 
-                        # 2. 使用 Pillow 讀取截圖
-                        image = Image.open(io.BytesIO(base64.b64decode(screenshot)))
-                        # 先確定 imgEndTime 是否存在
-                        if imgEndTime is not None:
-                            # 3. 元素的位置和大小
-                            location = imgEndTime.location
-                            size = imgEndTime.size
-                            x, y = location['x'], location['y']
-                            width, height = size['width'], size['height']
+                        # # 2. 使用 Pillow 讀取截圖
+                        # image = Image.open(io.BytesIO(base64.b64decode(screenshot)))
+                        # # 先確定 imgEndTime 是否存在
+                        # if imgEndTime is not None:
+                        #     # 3. 元素的位置和大小
+                        #     location = imgEndTime.location
+                        #     size = imgEndTime.size
+                        #     x, y = location['x'], location['y']
+                        #     width, height = size['width'], size['height']
 
-                            # 4. 定義裁剪區域，(left, upper, right, lower)
-                            box = (x, y, x + width, y + height)
+                        #     # 4. 定義裁剪區域，(left, upper, right, lower)
+                        #     box = (x, y, x + width, y + height)
 
-                            # 5. 裁剪圖像
-                            imgEndTime_image = image.crop(box)
-                            # 測試用截圖
-                            # imgEndTime_image.save("imgEndTime_image.png")
-                            # 6. 獲取最左側且垂直至中的像素顏色
-                            left_x = 0  # 水平最左側
-                            center_y = height // 2  # 垂直中間
-                            pixel_color = imgEndTime_image.getpixel((left_x, center_y))  # 使用 left_x 和 center_y
+                        #     # 5. 裁剪圖像
+                        #     imgEndTime_image = image.crop(box)
+                        #     # 測試用截圖
+                        #     # imgEndTime_image.save("imgEndTime_image.png")
+                        #     # 6. 獲取最左側且垂直至中的像素顏色
+                        #     left_x = 0  # 水平最左側
+                        #     center_y = height // 2  # 垂直中間
+                        #     pixel_color = imgEndTime_image.getpixel((left_x, center_y))  # 使用 left_x 和 center_y
 
-                            status = check_status(pixel_color)
-                        else:
-                            logging.error("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態")
-                            send_notification("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態", user)
+                        #     status = check_status(pixel_color)
+                        # else:
+                        #     logging.error("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態")
+                        #     send_notification("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態", user)
                         return
 
         # 每次滾動後更新滾動次數
@@ -290,7 +391,7 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
             action = ActionChains(driver)
             action.w3c_actions.pointer_action.move_to_location(500, 1600)  # 起點位置
             action.w3c_actions.pointer_action.pointer_down()  # 按下屏幕
-            action.w3c_actions.pointer_action.move_to_location(500, 400)  # 滑動至屏幕上方
+            action.w3c_actions.pointer_action.move_to_location(500, 800)  # 滑動至屏幕上方
             action.w3c_actions.pointer_action.pointer_up()  # 放開屏幕
             action.perform()
 
@@ -364,7 +465,9 @@ def main():
     action_schedule = pd.read_csv(action_schedule_path)
     driver = None
     for index, row in action_schedule.iterrows():
-        check_action_schedule()
+        # Load the initial schedule and its modification time
+        schedule_df, last_mod_time = load_schedule_with_mod_time()
+        check_action_schedule(last_mod_time)
         action_time_str = row['Time']
         Schedule_Date_str = row['Origin_Date']
         Punch_In_Time = row['Original_Punch_In_Time']
@@ -423,7 +526,7 @@ def main():
 
         if driver and wait:
             # 執行打卡操作
-            execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, Clock=True)
+            execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=True)
             time.sleep(5)
 
             # 清除應用快取並重新啟動 Appium session
@@ -432,7 +535,7 @@ def main():
             driver, wait = retry_login(account, password)
 
             if driver and wait:
-                execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, Clock=False)
+                execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=False)
                 delete_action_from_schedule(row)  # 傳遞 row 而不是 index
                 # 關閉當前的 session
                 driver.quit()
@@ -449,10 +552,10 @@ def main():
         driver.quit()
 
 if __name__ == "__main__":
-    # 啟動多線程檢查 Schedule.csv 的更新
+    # 启动多线程检查 Schedule.csv 的更新
     thread = threading.Thread(target=schedule_update_thread)
-    thread.daemon = True  # 設置為守護進程，主進程結束時子線程也會結束
+    thread.daemon = True  # 设置为守护进程，主进程结束时子线程也会结束
     thread.start()
 
-    # 執行打卡操作的主邏輯
+    # 执行打卡操作的主逻辑
     main()
