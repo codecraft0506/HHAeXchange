@@ -27,9 +27,14 @@ def login(driver,wait,account,password):
 
 # 打上班卡步驟
 def Clock_in(wait):
+    wait.until(EC.element_to_be_clickable((By.XPATH, '//android.widget.Button[@resource-id="com.hhaexchange.caregiver:id/btn_clock_in"]'))).click()
+    wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.TextView[@resource-id='com.hhaexchange.caregiver:id/label_title' and @text='GPS']"))).click()
+    wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.Button[@resource-id='com.android.permissioncontroller:id/permission_allow_foreground_only_button']"))).click()
+    wait.until(EC.element_to_be_clickable((By.XPATH, '//android.widget.Button[@resource-id="com.hhaexchange.caregiver:id/btn_clock_in"]'))).click()
+    wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.TextView[@resource-id='com.hhaexchange.caregiver:id/label_title' and @text='GPS']"))).click()
+    # wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.Button[@resource-id='com.hhaexchange.caregiver:id/btn_confirm']"))).click()
     print('上班打卡成功')
-    wait.until(EC.element_to_be_clickable((By.XPATH, '//android.widget.Button[@resource-id="com.hhaexchange.caregiver:id/btn_login"]'))).click()
-
+    
 # 打下班卡步驟
 def Clock_out(task_ids,driver,wait):
     # 如果 task_ids 為空值，使用預設的任務 ID
@@ -93,7 +98,7 @@ def Clock_out(task_ids,driver,wait):
         action = ActionChains(driver)
         action.w3c_actions.pointer_action.move_to_location(500, 1600)  # 起點位置
         action.w3c_actions.pointer_action.pointer_down()  # 按下屏幕
-        action.w3c_actions.pointer_action.move_to_location(500, 400)  # 滑動至屏幕上方
+        action.w3c_actions.pointer_action.move_to_location(500, 1000)  # 滑動至屏幕上方
         action.w3c_actions.pointer_action.pointer_up()  # 放開屏幕
         action.perform()
 
@@ -106,5 +111,5 @@ def Clock_out(task_ids,driver,wait):
     
     # 添加save.click()即可完成此涵式
     print('下班打卡成功')
-    wait.until(EC.element_to_be_clickable((By.XPATH, '//android.widget.Button[@content-desc="Save"]'))).click()
+    # wait.until(EC.element_to_be_clickable((By.XPATH, '//android.widget.Button[@content-desc="Save"]'))).click()
     

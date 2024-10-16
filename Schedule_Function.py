@@ -257,6 +257,32 @@ def remove_missed_shifts(shifts_df):
     remaining_shifts_df = pd.DataFrame(remaining_shifts)
     return remaining_shifts_df
 
+def auto_shifts(shifts_df):
+    # 获取当前日期
+    now = pd.Timestamp(datetime.now())
+    
+    # 遍历 DataFrame
+    for index, row in shifts_df.iterrows():
+        # 获取时间和日期
+        time_stamp = pd.Timestamp(row['Time'])
+        origin_date = pd.Timestamp(row['Origin_Date'])
+        
+        # 检查是否错过班次
+        while time_stamp < now:
+            # 将时间和日期各加上7天
+            time_stamp += timedelta(days=7)
+            origin_date += timedelta(days=7)
+        
+        # 更新 DataFrame
+        shifts_df.at[index, 'Time'] = time_stamp
+        
+        # 格式化 Origin_Date 以仅显示日期部分
+        shifts_df.at[index, 'Origin_Date'] = origin_date.date()  # 只保留日期，不包含时间
+
+    # 返回更新后的 DataFrame
+    auto_shifts_df = shifts_df
+    return auto_shifts_df
+
 def Insert_taskid(remaining_shifts, taskid_df):
     # 遍歷 remaining_shifts DataFrame 中的每一行
     for index, shift in remaining_shifts.iterrows():
@@ -309,6 +335,37 @@ def get_new_shifts():
 
     return remaining_shifts  # 返回新的班次 DataFrame
 
+def auto_update_schedule():
+    # 這裡的邏輯使用你提供的流程來生成新的班次數據
+    schedule_df, _ = load_schedule_with_mod_time()  # 加載 Schedule.csv 文件
+    variables_df = load_variables()  # 加載 variable.csv 文件
+
+    # 合併 schedule_df 和 variables_df
+    merged_df = merge_schedule_with_variables(schedule_df, variables_df)
+
+    # 初始化班次
+    sorted_shifts = load_all_shifts(merged_df)
+    shifts_df = pd.DataFrame(sorted_shifts)
+
+    # 加載 Account.csv 文件
+    accounts_df = load_account()
+
+    # 合併帳號密碼到打卡表
+    final_df = merge_accounts_to_shifts(shifts_df, accounts_df)
+
+    # 模擬打卡時間
+    final_df = simulate_punch_in_out(final_df)
+
+    updated_shifts_df = auto_shifts(final_df)
+
+    # 加載 taskid.csv 文件
+    taskid_df = load_taskid()
+
+    # 插入 Task_ID
+    updated_shifts_df = Insert_taskid(updated_shifts_df, taskid_df)
+
+    return updated_shifts_df  # 返回新的班次 DataFrame
+
 
 # 第一次執行獲取Action_Schedule.csv
 if __name__ == "__main__":
@@ -330,7 +387,7 @@ if __name__ == "__main__":
 
     # 模擬打卡時間
     final_df = simulate_punch_in_out(final_df)
-
+    
     # 檢查並剔除已經錯過的班次
     remaining_shifts = remove_missed_shifts(final_df)
 
@@ -347,6 +404,4 @@ if __name__ == "__main__":
     remaining_shifts.to_csv(output_file_path, index=False, encoding='utf-8-sig')
 
     print(f"已成功將剩餘的班次保存至 {output_file_path}")
-
-
     
