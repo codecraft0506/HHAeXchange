@@ -306,30 +306,36 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
 
                 elif action_type == "Punch Out" and punch_out_text == Punch_Out_Time and date_text == Schedule_Date_formatted:
                     if Clock:
-                        # Step 1: 將 punch_in_complete_text 轉換為 datetime 對象 (僅時間)
+                        # Step 1: 檢查 punch_in_complete_text 是否為 "無時間" 或其他無效時間
+                        if punch_in_complete_text.lower() == "無時間":
+                            logging.warning(f"punch_in_complete_text 為無時間，跳過處理")
+                            return
+                        
+                        # Step 2: 將 punch_in_complete_text 轉換為 datetime 對象 (僅時間)
                         try:
                             punch_in_complete_time = datetime.strptime(punch_in_complete_text, "%I:%M %p")
                         except ValueError as e:
                             logging.error(f"無法解析 punch_in_complete_text 為時間: {punch_in_complete_text}，錯誤: {e}")
                             return
                         
-                        # Step 2: 將 date_text 轉換為日期對象
+                        # Step 3: 將 date_text 轉換為日期對象
                         try:
                             punch_in_date = datetime.strptime(date_text, "%m/%d/%Y")  # 假設 date_text 的格式是 MM/DD/YYYY
                         except ValueError as e:
                             logging.error(f"無法解析 date_text 為日期: {date_text}，錯誤: {e}")
                             return
                         
-                        # Step 3: 將 punch_in_complete_time 與 date_text 日期合併
+                        # Step 4: 將 punch_in_complete_time 與 date_text 日期合併
                         punch_in_complete_time = punch_in_date.replace(hour=punch_in_complete_time.hour, minute=punch_in_complete_time.minute, second=0, microsecond=0)
-                        # Step 4: 
-                        # 设置时区
+
+                        # Step 5: 設置時區
                         local_tz = pytz.timezone(Time_Zone)
                         now_utc = datetime.now(pytz.utc)  # 获取当前UTC时间
                         now_local = now_utc.astimezone(local_tz)  # 转换为指定时区时间
 
-                        # 計算兩者時間差
+                        # 計算時間差
                         time_difference = now_local - punch_in_complete_time
+                        
                         # Step 6: 檢查時間差是否大於或等於 8 小時
                         if time_difference >= timedelta(hours=8):
                             logging.info(f"找到匹配下班日期: {date_text} 和時間: {punch_out_text}")
@@ -339,7 +345,7 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
                         else:
                             logging.warning(f"未滿8小時，無法打卡。已工作 {time_difference.total_seconds() / 3600:.2f} 小時")
                             send_notification(f"未滿8小時，無法打卡。已工作 {time_difference.total_seconds() / 3600:.2f} 小時", user)
-                            
+
                             # Step 7: 暫停 time_difference 時間後再執行 Clock_out
                             sleep_time = time_difference.total_seconds()
                             logging.info(f"將在 {sleep_time} 秒後執行打卡...")
@@ -353,7 +359,6 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
                             if driver and wait:
                                 # 執行打卡操作
                                 execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, Clock=True)
-
                         return
                     else:
                         # 1. 截取整個畫面
