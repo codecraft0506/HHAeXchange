@@ -40,7 +40,7 @@ def Clock_out(task_ids,driver,wait):
     # 如果 task_ids 為空值，使用預設的任務 ID
     if not task_ids or pd.isna(task_ids):
         print("Task_ID 為空，使用預設的任務 ID 列表")
-        task_ids = "20, 22, 40, 47, 50"  # 預設的任務 ID
+        task_ids = "20, 22, 40, 47, 50, 51"  # 預設的任務 ID
 
     wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.Button[@resource-id='com.hhaexchange.caregiver:id/btn_clock_out']"))).click()
     wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.TextView[@resource-id='com.hhaexchange.caregiver:id/label_title' and @text='GPS']"))).click()
@@ -88,6 +88,8 @@ def Clock_out(task_ids,driver,wait):
                         # 如果所有任務都已經匹配並勾選完，跳出迴圈
                         if not task_id_list:
                             print("所有任務已經勾選，結束操作")
+                            wait.until(EC.element_to_be_clickable((By.XPATH, '//android.widget.Button[@content-desc="Save"]'))).click()
+                            print('下班打卡成功')
                             return
                         
         # 如果所有任務已經勾選完，跳出整個滾動和檢查流程
@@ -109,6 +111,5 @@ def Clock_out(task_ids,driver,wait):
         if not task_elements or task_elements[-1].text == last_element.text:
             break  # 滾動到底，停止滾動
     
-    wait.until(EC.element_to_be_clickable((By.XPATH, '//android.widget.Button[@content-desc="Save"]'))).click()
-    print('下班打卡成功')
+    
     
