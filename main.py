@@ -502,6 +502,7 @@ def main():
     action_schedule = pd.read_csv(action_schedule_path)
     driver = None
     for index, row in action_schedule.iterrows():
+        user = row.get('User', 'Unknown')  # 在 try 區塊外部定義 user 變數
         try:
             # Load the initial schedule and its modification time
             schedule_df, last_mod_time = load_schedule_with_mod_time()
@@ -574,7 +575,6 @@ def main():
 
                 if driver and wait:
                     execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=False)
-                    delete_action_from_schedule(row)  # 傳遞 row 而不是 index
                     # 關閉當前的 session
                     driver.quit()
                     driver = None
@@ -585,7 +585,9 @@ def main():
                 logging.error("登入失敗，跳過當前排程")
                 continue
         except Exception as e:
-            logging.error(f"處理用戶 {user} 的排程時發生未預期的錯誤：{e}")
+            error_message = f"處理用戶 {user} 的排程時發生未預期的錯誤：{e}"
+            logging.error(error_message)
+            send_notification(error_message, user)
             continue  # 確保繼續處理下一個排程
         finally:
             # 無論是否發生錯誤，都嘗試刪除該排程
