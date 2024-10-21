@@ -16,7 +16,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from Schedule_Function import load_schedule_with_mod_time
 from Schedule_Function import get_new_shifts, auto_update_schedule
-from app_operate import clear_app_data, login, Clock_in, Clock_out
+from app_operate import random_delay,clear_app_data, tap_element, login, Clock_in, Clock_out
 from Set_Location import get_lat_long, set_virtual_location
 from notify import send_notification
 
@@ -71,7 +71,6 @@ def check_action_schedule(last_mod_time):
     else:
         logging.error("Action_Schedule.csv 不存在")
         send_notification("Action_Schedule.csv 不存在")
-
 
 def update_action_schedule(schedule_df, use_auto_update=False):
     with file_lock:
@@ -136,8 +135,6 @@ def update_action_schedule(schedule_df, use_auto_update=False):
 
         logging.info("更新完成，當前記錄數: %d", len(combined_df) if 'combined_df' in locals() else len(new_shifts_df))
         send_notification("更新完成，當前記錄數: %d", len(combined_df) if 'combined_df' in locals() else len(new_shifts_df))
-
-
 # 使用多线程更新 Action_Schedule.csv
 def schedule_update_thread():
     schedule_df, last_mod_time = load_schedule_with_mod_time()
@@ -165,7 +162,7 @@ def schedule_update_thread():
                 send_notification("需要更新 Schedule.csv了")
         else:
             logging.error("Action_Schedule.csv 不存在")
-
+# 重複嘗試登入
 def retry_login(account, password):
     max_attempts = 10
     attempts = 0
@@ -181,9 +178,8 @@ def retry_login(account, password):
 
             # 登录并执行动作
             login(driver, wait, account, password)
-            wait.until(EC.element_to_be_clickable((
-                By.XPATH, '//android.widget.LinearLayout[@resource-id="com.hhaexchange.caregiver:id/layout_list_home"]/android.widget.RelativeLayout[3]'
-            ))).click()
+            vist = wait.until(EC.element_to_be_clickable((By.XPATH, '//android.widget.LinearLayout[@resource-id="com.hhaexchange.caregiver:id/layout_list_home"]/android.widget.RelativeLayout[3]')))
+            tap_element(driver, vist)
             success = True
             return driver, wait
         except Exception as e:
@@ -200,13 +196,12 @@ def retry_login(account, password):
         # 在这里添加失败后的处理逻辑，例如跳过此排程或通知用户
         send_notification("多次嘗試登入失敗，請檢查網路連線或帳號密碼。", account)
         return None, None
-
 # 根据 action 执行操作
 def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=True):
     try:
         if driver is None or wait is None:
             logging.error("driver 或 wait 为空，无法执行操作")
-            return
+            return False
 
         def get_element_text(item, xpath, default="無時間"):
             try:
@@ -272,9 +267,9 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
                     if action_type == "Punch In" and punch_in_text == Punch_In_Time and date_text == Schedule_Date_formatted:
                         if Clock:
                             logging.info(f"找到匹配上班日期: {date_text} 和時間: {punch_in_text}")
-                            item.click()
-                            Clock_in(wait)  # 執行打卡
-                            return
+                            tap_element(driver, item)
+                            Clock_in(driver, wait)  # 執行打卡
+                            return True
                         else:
                             # 1. 截取整個畫面
                             screenshot = driver.get_screenshot_as_base64()
@@ -359,9 +354,10 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
                             # Step 6: 檢查時間差是否滿足期望的工作時數
                             if time_difference >= timedelta(hours=hours_of_satisfaction):
                                 logging.info(f"找到匹配下班日期: {date_text} 和時間: {punch_out_text}")
-                                item.click()
+                                tap_element(driver, item)
                                 logging.info('執行下班打卡操作')
                                 Clock_out(task_ids, driver, wait)  # 執行打卡
+                                return True
                             else:
                                 actual_worked_hours = time_difference.total_seconds() / 3600
                                 logging.warning(f"未滿足期望的工作時數，無法打卡。已工作 {actual_worked_hours:.2f} 小時")
@@ -428,14 +424,12 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
                 logging.error(f"W3C 滾動失敗，錯誤: {e}")
 
         logging.error("未找到匹配的項目，操作失敗")
+        send_notification("未找到匹配的項目，操作失敗", user)
+        return False  # 返回 False 表示失敗
     except Exception as e:
         logging.error(f"執行動作時發生錯誤：{e}")
         send_notification(f"執行動作時發生錯誤：{e}", user)
-
-# 檢查打卡狀態是否成功
-def check_action_status(driver, action):
-    logging.info('打卡狀態檢查成功')
-
+        return False  # 返回 False 表示失敗
 # 刪除已成功打卡的 Action_Schedule.csv 中的資料
 def delete_action_from_schedule(row_to_delete):
     with file_lock:
@@ -490,7 +484,6 @@ def delete_action_from_schedule(row_to_delete):
             logging.info(f"已删除用户 {row_df.iloc[0]['User']} 的动作 {row_df.iloc[0]['Action']}。")
         else:
             logging.error("未找到匹配的行进行删除。")
-
 # 主邏輯
 def main():
     action_schedule_path = os.path.join(script_dir, 'Action_Schedule.csv')
@@ -565,12 +558,15 @@ def main():
 
             if driver and wait:
                 # 執行打卡操作
-                execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=True)
-                time.sleep(5)
-
+                if not execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=True):
+                    logging.error("執行打卡操作失敗，退出排程")
+                    send_notification("執行打卡操作失敗，退出排程", user)
+                    break  # 退出迴圈並停止後續操作
+                
                 # 清除應用快取並重新啟動 Appium session
                 driver.quit()
                 driver = None
+                time.sleep(180)
                 driver, wait = retry_login(account, password)
 
                 if driver and wait:
@@ -594,6 +590,7 @@ def main():
             try:
                 delete_action_from_schedule(row)
                 logging.info(f"已刪除用戶 {user} 的排程。")
+                send_notification(f"已刪除用戶 {user} 的排程。", user)
             except Exception as del_e:
                 logging.error(f"刪除排程時發生錯誤：{del_e}")
             continue  # 繼續處理下一個排程
