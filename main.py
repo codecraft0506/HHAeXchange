@@ -570,6 +570,14 @@ def main():
                 driver, wait = retry_login(account, password)
 
                 if driver and wait:
+                    # 虛擬機模擬定位
+                    if isinstance(address, str) and not pd.isna(address):
+                        longitude, latitude = get_lat_long(address)
+                        if longitude is not None and latitude is not None:
+                            set_virtual_location(longitude, latitude)
+                        else:
+                            longitude, latitude = get_lat_long("384 Grand St, Test2 York, NY 10002")
+                            set_virtual_location(longitude, latitude)
                     execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=False)
                     # 關閉當前的 session
                     driver.quit()
