@@ -55,6 +55,8 @@ def login(driver, wait, account, password):
 
     login_button = driver.find_element(By.XPATH, '//android.widget.Button[@resource-id="com.hhaexchange.caregiver:id/btn_login"]')
     tap_element(driver, login_button)
+    # 新增等待時間
+    time.sleep(10)
 
 # 打上班卡步驟
 def Clock_in(driver, wait):
@@ -73,6 +75,8 @@ def Clock_in(driver, wait):
     gps_title = wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.TextView[@resource-id='com.hhaexchange.caregiver:id/label_title' and @text='GPS']")))
     tap_element(driver, gps_title)
 
+    # before click confirm, Sleep 10 sec
+    time.sleep(10)
     confirm_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.Button[@resource-id='com.hhaexchange.caregiver:id/btn_confirm']")))
     tap_element(driver, confirm_button)
 
@@ -98,7 +102,8 @@ def Clock_out(task_ids, driver, wait):
 
     gps_title = wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.TextView[@resource-id='com.hhaexchange.caregiver:id/label_title' and @text='GPS']")))
     tap_element(driver, gps_title)
-
+    # before click confirm, Sleep 10 sec
+    time.sleep(10)
     confirm_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.Button[@resource-id='com.hhaexchange.caregiver:id/btn_confirm']")))
     tap_element(driver, confirm_button)
 

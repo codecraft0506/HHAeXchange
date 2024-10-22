@@ -80,7 +80,7 @@ def update_action_schedule(schedule_df, use_auto_update=False):
             new_shifts_df = get_new_shifts()
 
         # 确保日期列格式一致
-        date_columns = ['Time', 'Original_Punch_In_Time', 'Origin_Date']
+        date_columns = ['Time', 'Origin_Date']
         for col in date_columns:
             new_shifts_df[col] = pd.to_datetime(new_shifts_df[col])
 
@@ -94,7 +94,7 @@ def update_action_schedule(schedule_df, use_auto_update=False):
         if os.path.exists(action_schedule_path):
             existing_shifts_df = pd.read_csv(
                 action_schedule_path, 
-                parse_dates=['Time', 'Original_Punch_In_Time', 'Origin_Date']
+                parse_dates=['Time', 'Origin_Date']
             )
 
             for col in date_columns:
@@ -108,7 +108,7 @@ def update_action_schedule(schedule_df, use_auto_update=False):
 
             # 去重
             combined_df.drop_duplicates(
-                subset=['User', 'Time', 'Original_Punch_In_Time', 'Origin_Date'], 
+                subset=['User', 'Time', 'Origin_Date'], 
                 inplace=True
             )
 
