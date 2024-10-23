@@ -186,7 +186,7 @@ def retry_login(account, password):
             logging.info(f"第 {attempts + 1} 次尝试失败，错误: {e}")
             attempts += 1
             # 关闭驱动程序并等待一段时间后再重试
-            if driver:
+            if driver is not None:
                 driver.quit()
                 driver = None
             time.sleep(5)
@@ -370,11 +370,10 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
                                 time.sleep(sleep_time)  # 暫停指定的秒數
 
                                 # 重新執行打卡操作
-                                logging.info('執行下班打卡操作')
                                 driver, wait = retry_login(account, password)
 
                                 if driver and wait:
-                                    execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=True)
+                                    execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=True)
                             return
                         else:
                             # 1. 截取整個畫面
@@ -553,23 +552,15 @@ def main():
                     longitude, latitude = get_lat_long("384 Grand St, Test2 York, NY 10002")
                     set_virtual_location(longitude, latitude)
 
-            # 清除應用快取並啟動 Appium session
-            driver, wait = retry_login(account, password)
+            retry_count = 0
+            max_retries = 2
+            action_success = False
 
-            if driver and wait:
-                # 執行打卡操作
-                if not execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=True):
-                    logging.error("執行打卡操作失敗，退出排程")
-                    send_notification("執行打卡操作失敗，退出排程", user)
-                    break  # 退出迴圈並停止後續操作
-                
-                # 清除應用快取並重新啟動 Appium session
-                driver.quit()
-                driver = None
-                time.sleep(180)
+            while retry_count <= max_retries and not action_success:
+            # 清除應用快取並啟動 Appium session
                 driver, wait = retry_login(account, password)
 
-                if driver and wait:
+                if driver and wait:   
                     # 虛擬機模擬定位
                     if isinstance(address, str) and not pd.isna(address):
                         longitude, latitude = get_lat_long(address)
@@ -578,16 +569,57 @@ def main():
                         else:
                             longitude, latitude = get_lat_long("384 Grand St, Test2 York, NY 10002")
                             set_virtual_location(longitude, latitude)
-                    execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=False)
-                    # 關閉當前的 session
-                    driver.quit()
-                    driver = None
+                    # 執行打卡操作
+                    action_success = execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=True)
+
+                    if action_success:
+                        logging.info("打卡操作成功，等待檢查...")
+                        if driver is not None:
+                            driver.quit()
+                        driver = None
+                        break  # 成功時退出重試迴圈
+                    else:
+                        logging.error("執行打卡操作失敗，重試中...")
+                        retry_count += 1
+                        if retry_count > max_retries:
+                            logging.error("已達到最大重試次數，退出排程")
+                            send_notification("執行打卡操作失敗，退出排程", user)
+                            break
+                        else:
+                            if driver is not None:
+                                driver.quit()
+                            driver = None
                 else:
-                    logging.error("應用重啟失敗，跳過當前排程")
+                    logging.error("登入失敗，跳過當前排程")
+                    retry_count += 1
                     continue
+            if action_success:
+                time.sleep(180)
+                retry_count = 0
+                while retry_count <= max_retries:
+                    driver, wait = retry_login(account, password)
+                    if driver and wait:
+                        execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=False)
+                        logging.info("檢查操作已完成")
+                        # 關閉當前的 session
+                        if driver is not None:
+                            driver.quit()
+                        driver = None
+                        break
+                    else:
+                        logging.error("應用重啟失敗，重試中...")
+                        retry_count += 1
+                        if retry_count > max_retries:
+                            logging.error("已達到最大重試次數，跳過當前排程")
+                            break
+                        else:
+                            if driver is not None:
+                                driver.quit()
+                            driver = None
             else:
-                logging.error("登入失敗，跳過當前排程")
-                continue
+                logging.error("執行打卡操作失敗")
+                send_notification("執行打卡操作失敗", user)
+                        
         except Exception as e:
             error_message = f"處理用戶 {user} 的排程時發生未預期的錯誤：{e}"
             logging.error(error_message)
@@ -597,14 +629,14 @@ def main():
             # 無論是否發生錯誤，都嘗試刪除該排程
             try:
                 delete_action_from_schedule(row)
-                logging.info(f"已刪除用戶 {user} 的排程。")
-                send_notification(f"已刪除用戶 {user} 的排程。", user)
+                logging.info(f"已刪除用戶 {user}在{action_time_str} 的排程。")
+                send_notification(f"在{action_time_str}的排程已被刪除。", user)
             except Exception as del_e:
                 logging.error(f"刪除排程時發生錯誤：{del_e}")
             continue  # 繼續處理下一個排程
 
     # 關閉最後的 session
-    if driver:
+    if driver is not None:
         driver.quit()
 
 if __name__ == "__main__":
