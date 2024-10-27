@@ -16,7 +16,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from Schedule_Function import load_schedule_with_mod_time
 from Schedule_Function import get_new_shifts, auto_update_schedule
-from app_operate import random_delay,clear_app_data, tap_element, login, Clock_in, Clock_out
+from app_operate import clear_app_data, tap_element, login, Clock_in, Clock_out
 from Set_Location import get_lat_long, set_virtual_location
 from notify import send_notification
 
@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # 设置 Appium driver
-def setup_app():
+def setup_app(address):
     desired_caps = {
         "platformName": "Android",
         "platformVersion": "15",
@@ -41,9 +41,27 @@ def setup_app():
     }
     try:
         driver = webdriver.Remote('http://localhost:4723', desired_caps)
+        
+        # 檢查並設定 GPS 定位
+        if address and isinstance(address, str):
+            longitude, latitude = get_lat_long(address)
+            if longitude is None or latitude is None:
+                # 若無效地址，使用默認地址
+                logging.warning(f"地址 '{address}' 無法解析，使用默認位置")
+                longitude, latitude = get_lat_long("384 Grand St, New York, NY 10002")
+            
+            # 設定虛擬定位及 Appium 定位
+            set_virtual_location(longitude, latitude)
+            driver.set_location(latitude=latitude, longitude=longitude, altitude=0)
+            logging.info(f"設置初始GPS位置: 經度={longitude}, 緯度={latitude}")
+            
+        else:
+            logging.warning("無有效地址，跳過GPS設置")
+        
         return driver
+    
     except Exception as e:
-        logging.error(f"初始化 Appium driver 时发生错误: {e}")
+        logging.error(f"初始化 Appium driver 時發生錯誤: {e}")
         return None
 
 def check_action_schedule(last_mod_time):
@@ -163,7 +181,7 @@ def schedule_update_thread():
         else:
             logging.error("Action_Schedule.csv 不存在")
 # 重複嘗試登入
-def retry_login(account, password):
+def retry_login(account, password, address):
     max_attempts = 10
     attempts = 0
     success = False
@@ -171,7 +189,7 @@ def retry_login(account, password):
     while attempts < max_attempts and not success:
         try:
             clear_app_data()
-            driver = setup_app()
+            driver = setup_app(address)
             if driver is None:
                 raise Exception("无法初始化 Appium driver")
             wait = WebDriverWait(driver, 10)
@@ -197,7 +215,7 @@ def retry_login(account, password):
         send_notification("多次嘗試登入失敗，請檢查網路連線或帳號密碼。", account)
         return None, None
 # 根据 action 执行操作
-def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=True):
+def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, address, Clock=True):
     try:
         if driver is None or wait is None:
             logging.error("driver 或 wait 为空，无法执行操作")
@@ -356,8 +374,7 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
                                 logging.info(f"找到匹配下班日期: {date_text} 和時間: {punch_out_text}")
                                 tap_element(driver, item)
                                 logging.info('執行下班打卡操作')
-                                Clock_out(task_ids, driver, wait)  # 執行打卡
-                                return True
+                                return Clock_out(task_ids, driver, wait)  # 執行打卡
                             else:
                                 actual_worked_hours = time_difference.total_seconds() / 3600
                                 logging.warning(f"未滿足期望的工作時數，無法打卡。已工作 {actual_worked_hours:.2f} 小時")
@@ -370,7 +387,7 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
                                 time.sleep(sleep_time)  # 暫停指定的秒數
 
                                 # 重新執行打卡操作
-                                driver, wait = retry_login(account, password)
+                                driver, wait = retry_login(account, password, address)
 
                                 if driver and wait:
                                     execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=True)
@@ -558,7 +575,7 @@ def main():
 
             while retry_count <= max_retries and not action_success:
             # 清除應用快取並啟動 Appium session
-                driver, wait = retry_login(account, password)
+                driver, wait = retry_login(account, password, address)
 
                 if driver and wait:   
                     # 虛擬機模擬定位
@@ -597,7 +614,7 @@ def main():
                 time.sleep(180)
                 retry_count = 0
                 while retry_count <= max_retries:
-                    driver, wait = retry_login(account, password)
+                    driver, wait = retry_login(account, password, address)
                     if driver and wait:
                         execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=False)
                         logging.info("檢查操作已完成")
