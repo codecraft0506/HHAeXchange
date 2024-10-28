@@ -286,8 +286,7 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
                         if Clock:
                             logging.info(f"找到匹配上班日期: {date_text} 和時間: {punch_in_text}")
                             tap_element(driver, item)
-                            Clock_in(driver, wait)  # 執行打卡
-                            return True
+                            return Clock_in(driver, wait)  # 執行打卡
                         else:
                             # 1. 截取整個畫面
                             screenshot = driver.get_screenshot_as_base64()
