@@ -41,22 +41,21 @@ def setup_app(address):
     }
     try:
         driver = webdriver.Remote('http://localhost:4723', desired_caps)
+
+        # 確認 address 是否有效，若無效則使用默認地址
+        if not address or not isinstance(address, str):
+            logging.warning("無有效地址，使用默認位置")
+            address = "384 Grand St, New York, NY 10002"
         
-        # 檢查並設定 GPS 定位
-        if address and isinstance(address, str):
-            longitude, latitude = get_lat_long(address)
-            if longitude is None or latitude is None:
-                # 若無效地址，使用默認地址
-                logging.warning(f"地址 '{address}' 無法解析，使用默認位置")
-                longitude, latitude = get_lat_long("384 Grand St, New York, NY 10002")
-            
-            # 設定虛擬定位及 Appium 定位
-            set_virtual_location(longitude, latitude)
-            driver.set_location(latitude=latitude, longitude=longitude, altitude=0)
-            logging.info(f"設置初始GPS位置: 經度={longitude}, 緯度={latitude}")
-            
-        else:
-            logging.warning("無有效地址，跳過GPS設置")
+        longitude, latitude = get_lat_long(address)
+        if longitude is None or latitude is None:
+            logging.warning(f"地址 '{address}' 無法解析，使用默認位置")
+            longitude, latitude = get_lat_long("384 Grand St, New York, NY 10002")
+
+        # 設定虛擬定位及 Appium 定位
+        set_virtual_location(longitude, latitude)
+        driver.set_location(latitude=latitude, longitude=longitude, altitude=0)
+        logging.info(f"設置初始GPS位置: 經度={longitude}, 緯度={latitude}")
         
         return driver
     
@@ -559,15 +558,6 @@ def main():
                 logging.info(f"等待 {int(hours)} 小時 {int(minutes)} 分 {int(seconds)} 秒，執行 {user} 在 {action_time} 的 {action} 動作")
                 time.sleep(time_difference)
 
-            # 虛擬機模擬定位
-            if isinstance(address, str) and not pd.isna(address):
-                longitude, latitude = get_lat_long(address)
-                if longitude is not None and latitude is not None:
-                    set_virtual_location(longitude, latitude)
-                else:
-                    longitude, latitude = get_lat_long("384 Grand St, Test2 York, NY 10002")
-                    set_virtual_location(longitude, latitude)
-
             retry_count = 0
             max_retries = 2
             action_success = False
@@ -577,14 +567,6 @@ def main():
                 driver, wait = retry_login(account, password, address)
 
                 if driver and wait:   
-                    # 虛擬機模擬定位
-                    if isinstance(address, str) and not pd.isna(address):
-                        longitude, latitude = get_lat_long(address)
-                        if longitude is not None and latitude is not None:
-                            set_virtual_location(longitude, latitude)
-                        else:
-                            longitude, latitude = get_lat_long("384 Grand St, Test2 York, NY 10002")
-                            set_virtual_location(longitude, latitude)
                     # 執行打卡操作
                     action_success = execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, address, Clock=True)
 
