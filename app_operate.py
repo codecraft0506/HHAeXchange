@@ -147,6 +147,9 @@ def Clock_out(task_ids, driver, wait):
 
     except Exception as e:
         print("尋找元素時出現錯誤:", e)
+    
+    confirm_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.Button[@resource-id='com.hhaexchange.caregiver:id/btn_confirm']")))
+    tap_element(driver, confirm_button)
 
     all_task_texts = set()
     task_id_list = [task_id.strip() for task_id in task_ids.split(',')]
