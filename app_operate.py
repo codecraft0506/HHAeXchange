@@ -76,11 +76,33 @@ def Clock_in(driver, wait):
     tap_element(driver, gps_title)
 
     # before click confirm, Sleep 10 sec
-    time.sleep(10)
+    time.sleep(30)
+    try:
+        # 等待元素可見並獲取元素
+        element = WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located((By.XPATH, '//android.widget.TextView[@resource-id="com.hhaexchange.caregiver:id/txtDesc"]'))
+        )
+        # 獲取元素中的文本
+        text = element.text
+        print("獲取到的文本:", text)
+
+        # 根據文本中的關鍵詞判斷狀態
+        if "Out of Range." in text:
+            print("狀態: 超出範圍")
+            return False
+        elif "In Range." in text:
+            print("狀態: 在範圍內")
+        else:
+            print("狀態: 未識別的訊息")
+            return False
+
+    except Exception as e:
+        print("尋找元素時出現錯誤:", e)
     confirm_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.Button[@resource-id='com.hhaexchange.caregiver:id/btn_confirm']")))
     tap_element(driver, confirm_button)
 
     print('上班打卡成功')
+    return True
 
 # 打下班卡步驟
 def Clock_out(task_ids, driver, wait):
@@ -103,7 +125,7 @@ def Clock_out(task_ids, driver, wait):
     gps_title = wait.until(EC.element_to_be_clickable((By.XPATH, "//android.widget.TextView[@resource-id='com.hhaexchange.caregiver:id/label_title' and @text='GPS']")))
     tap_element(driver, gps_title)
     # before click confirm, Sleep 10 sec
-    time.sleep(10)
+    time.sleep(30)
     try:
         # 等待元素可見並獲取元素
         element = WebDriverWait(driver, 10).until(

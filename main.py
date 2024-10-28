@@ -390,7 +390,7 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
                                 driver, wait = retry_login(account, password, address)
 
                                 if driver and wait:
-                                    execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=True)
+                                    execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, address, Clock=True)
                             return
                         else:
                             # 1. 截取整個畫面
@@ -587,7 +587,7 @@ def main():
                             longitude, latitude = get_lat_long("384 Grand St, Test2 York, NY 10002")
                             set_virtual_location(longitude, latitude)
                     # 執行打卡操作
-                    action_success = execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=True)
+                    action_success = execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, address, Clock=True)
 
                     if action_success:
                         logging.info("打卡操作成功，等待檢查...")
@@ -616,7 +616,7 @@ def main():
                 while retry_count <= max_retries:
                     driver, wait = retry_login(account, password, address)
                     if driver and wait:
-                        execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, Clock=False)
+                        execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, address, Clock=False)
                         logging.info("檢查操作已完成")
                         # 關閉當前的 session
                         if driver is not None:
