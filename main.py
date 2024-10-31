@@ -292,6 +292,7 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
 
                             # 2. 使用 Pillow 讀取截圖
                             image = Image.open(io.BytesIO(base64.b64decode(screenshot)))
+                            image.save("FullScreen_Screenshot.png")
                             if imgStartTime is not None:
                                 # 3. 元素的位置和大小
                                 location = imgStartTime.location
@@ -305,13 +306,16 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
                                 # 5. 裁剪圖像
                                 imgStartTime_image = image.crop(box)
                                 # 測試用截圖
-                                # imgStartTime_image.save("imgStartTime_image.png")
+                                imgStartTime_image.save("imgStartTime_image.png")
                                 # 6. 獲取最左側且垂直至中的像素顏色
                                 left_x = 0  # 水平最左側
                                 center_y = height // 2  # 垂直中間
                                 pixel_color = imgStartTime_image.getpixel((left_x, center_y))  # 使用 left_x 和 center_y
 
-                                status = check_status(pixel_color)
+                                send_notification('螢幕截圖', user, "FullScreen_Screenshot.png")
+                                send_notification('檢查元素圖象', user, "imgStartTime_image.png")
+
+                                check_status(pixel_color)
                             else:
                                 logging.error("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態")
                                 send_notification("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態", user)
@@ -396,6 +400,7 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
 
                             # 2. 使用 Pillow 讀取截圖
                             image = Image.open(io.BytesIO(base64.b64decode(screenshot)))
+                            image.save("FullScreen_Screenshot.png")  # 另存為完整截圖文件
                             # 先確定 imgEndTime 是否存在
                             if imgEndTime is not None:
                                 # 3. 元素的位置和大小
@@ -410,13 +415,16 @@ def execute_action(wait, driver, action_type, Schedule_Date_formatted, Punch_In_
                                 # 5. 裁剪圖像
                                 imgEndTime_image = image.crop(box)
                                 # 測試用截圖
-                                # imgEndTime_image.save("imgEndTime_image.png")
+                                imgEndTime_image.save("imgEndTime_image.png")
                                 # 6. 獲取最左側且垂直至中的像素顏色
                                 left_x = 0  # 水平最左側
                                 center_y = height // 2  # 垂直中間
                                 pixel_color = imgEndTime_image.getpixel((left_x, center_y))  # 使用 left_x 和 center_y
 
-                                status = check_status(pixel_color)
+                                send_notification('螢幕截圖', user, "FullScreen_Screenshot.png")
+                                send_notification('檢查元素圖象', user, "imgEndTime_image.png")
+
+                                check_status(pixel_color)
                             else:
                                 logging.error("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態")
                                 send_notification("imgEndTime 元素未找到，無法進行截圖操作，可能是尚未打卡或APP尚未更新狀態", user)
@@ -548,15 +556,15 @@ def main():
                 logging.error(f"无法解析时间 '{action_time_str}'，错误: {ve}")
                 continue  # 如果解析失败，跳过当前循环
 
-            # 計算當前時間與打卡時間之間的差異
-            time_difference = (action_time - now_local).total_seconds()
+            # # 計算當前時間與打卡時間之間的差異
+            # time_difference = (action_time - now_local).total_seconds()
 
-            # 如果當前時間尚未達到打卡時間，則計算等待的時間（幾時幾分幾秒）
-            if time_difference > 0:
-                hours, remainder = divmod(time_difference, 3600)  # 計算小時
-                minutes, seconds = divmod(remainder, 60)  # 計算分鐘和秒
-                logging.info(f"等待 {int(hours)} 小時 {int(minutes)} 分 {int(seconds)} 秒，執行 {user} 在 {action_time} 的 {action} 動作")
-                time.sleep(time_difference)
+            # # 如果當前時間尚未達到打卡時間，則計算等待的時間（幾時幾分幾秒）
+            # if time_difference > 0:
+            #     hours, remainder = divmod(time_difference, 3600)  # 計算小時
+            #     minutes, seconds = divmod(remainder, 60)  # 計算分鐘和秒
+            #     logging.info(f"等待 {int(hours)} 小時 {int(minutes)} 分 {int(seconds)} 秒，執行 {user} 在 {action_time} 的 {action} 動作")
+            #     time.sleep(time_difference)
 
             retry_count = 0
             max_retries = 2
@@ -568,7 +576,8 @@ def main():
 
                 if driver and wait:   
                     # 執行打卡操作
-                    action_success = execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, address, Clock=True)
+                    # action_success = execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, address, Clock=True)
+                    action_success = True
 
                     if action_success:
                         logging.info("打卡操作成功，等待檢查...")
@@ -592,7 +601,7 @@ def main():
                     retry_count += 1
                     continue
             if action_success:
-                time.sleep(180)
+                # time.sleep(180)
                 retry_count = 0
                 while retry_count <= max_retries:
                     driver, wait = retry_login(account, password, address)
