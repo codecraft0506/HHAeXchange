@@ -30,7 +30,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 def setup_app(address):
     desired_caps = {
         "platformName": "Android",
-        "platformVersion": "15",
+        "platformVersion": "14",
         "deviceName": "emulator-5554",
         "automationName": "UiAutomator2",
         "appPackage": "com.hhaexchange.caregiver",
@@ -76,13 +76,13 @@ def check_action_schedule(last_mod_time):
 
         action_count = len(action_df)
 
-        if action_count <= 2:
-            logging.info("班表數量少於2筆，開始自動更新")
+        if action_count <= 10:
+            logging.info("班表數量少於10筆，開始自動更新")
             schedule_df, current_mod_time = load_schedule_with_mod_time()
             if current_mod_time == last_mod_time:
-                logging.info("班表數量少於2筆且Schedule.csv 未更新，開始自動更新")
+                logging.info("班表數量少於10筆且Schedule.csv 未更新，開始自動更新")
                 update_action_schedule(schedule_df, use_auto_update=True)
-        elif action_count <= 3:
+        elif action_count <= 12:
             logging.info("提醒用户更新 Schedule.csv")
             send_notification("需要更新 Schedule.csv了")
     else:
@@ -169,12 +169,12 @@ def schedule_update_thread():
         if os.path.exists(action_schedule_path):
             action_df = pd.read_csv(action_schedule_path)
             
-            if len(action_df) <= 2:
+            if len(action_df) <= 10:
                 logging.info("提醒用戶更新 Schedule.csv")
                 if current_mod_time == last_mod_time:
                     logging.info("Schedule.csv 未更新，使用 auto_update_schedule() 來新增班表")
                     update_action_schedule(schedule_df, use_auto_update=True)
-            elif len(action_df) <= 3:
+            elif len(action_df) <= 12:
                 logging.info("提醒用戶更新 Schedule.csv")
                 send_notification("需要更新 Schedule.csv了")
         else:
