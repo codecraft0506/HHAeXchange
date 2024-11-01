@@ -556,15 +556,15 @@ def main():
                 logging.error(f"无法解析时间 '{action_time_str}'，错误: {ve}")
                 continue  # 如果解析失败，跳过当前循环
 
-            # # 計算當前時間與打卡時間之間的差異
-            # time_difference = (action_time - now_local).total_seconds()
+            # 計算當前時間與打卡時間之間的差異
+            time_difference = (action_time - now_local).total_seconds()
 
-            # # 如果當前時間尚未達到打卡時間，則計算等待的時間（幾時幾分幾秒）
-            # if time_difference > 0:
-            #     hours, remainder = divmod(time_difference, 3600)  # 計算小時
-            #     minutes, seconds = divmod(remainder, 60)  # 計算分鐘和秒
-            #     logging.info(f"等待 {int(hours)} 小時 {int(minutes)} 分 {int(seconds)} 秒，執行 {user} 在 {action_time} 的 {action} 動作")
-            #     time.sleep(time_difference)
+            # 如果當前時間尚未達到打卡時間，則計算等待的時間（幾時幾分幾秒）
+            if time_difference > 0:
+                hours, remainder = divmod(time_difference, 3600)  # 計算小時
+                minutes, seconds = divmod(remainder, 60)  # 計算分鐘和秒
+                logging.info(f"等待 {int(hours)} 小時 {int(minutes)} 分 {int(seconds)} 秒，執行 {user} 在 {action_time} 的 {action} 動作")
+                time.sleep(time_difference)
 
             retry_count = 0
             max_retries = 2
@@ -576,8 +576,7 @@ def main():
 
                 if driver and wait:   
                     # 執行打卡操作
-                    # action_success = execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, address, Clock=True)
-                    action_success = True
+                    action_success = execute_action(wait, driver, action, Schedule_Date_formatted, Punch_In_Time, Punch_Out_Time, task_ids, user, account, password, Time_Zone, address, Clock=True)
 
                     if action_success:
                         logging.info("打卡操作成功，等待檢查...")
