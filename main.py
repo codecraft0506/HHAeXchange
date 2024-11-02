@@ -4,6 +4,7 @@ import time
 import pytz
 import io
 import base64
+import random
 import logging
 import threading
 import pandas as pd
@@ -51,6 +52,8 @@ def setup_app(address):
         if longitude is None or latitude is None:
             logging.warning(f"地址 '{address}' 無法解析，使用默認位置")
             longitude, latitude = get_lat_long("384 Grand St, New York, NY 10002")
+            longitude += random.uniform(0, 0.001)
+            latitude += random.uniform(0, 0.001)
 
         # 設定虛擬定位及 Appium 定位
         set_virtual_location(longitude, latitude)
